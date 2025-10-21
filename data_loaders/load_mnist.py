@@ -3,6 +3,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
 
 def load_mnist_images(filename):
+    """Loads MNIST images from the given filename."""
     with open(filename, 'rb') as f:
         data = f.read()
     # Skip the 16-byte header

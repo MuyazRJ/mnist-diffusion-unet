@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from math import ceil
 
 def reverse(model):
+    """Generates an image by reversing the diffusion process using the provided model."""
     x_t = torch.randn((1, 1, 28, 28))  # Start from pure noise
     for t in reversed(range(0, T)):
         with torch.no_grad():
@@ -23,6 +24,7 @@ def reverse(model):
     return x_img_255
 
 def reverse_with_visualization(model, device="cpu"):
+    """Generates an image by reversing the diffusion process with visualization at intervals."""
     model.eval()
     x_t = torch.randn((1, 1, 28, 28), device=device)
     imgs = []

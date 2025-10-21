@@ -4,6 +4,7 @@ import torch.nn as nn
 from config import t_embeddings, T_DIM
 
 class ResidualBlock(nn.Module):
+    """Residual block with timestep embedding."""
     def __init__(self, in_ch, out_ch, num_groups=8):
         super().__init__()
         num_groups = min(num_groups, in_ch)
@@ -21,6 +22,7 @@ class ResidualBlock(nn.Module):
         return self.act(self.skip(x) + self.conv2(self.gn2(embeddings)))
 
 class ResidualBlockSeq(nn.Module):
+    """Sequence of residual blocks."""
     def __init__(self, blocks):
         super().__init__()
         self.blocks = nn.ModuleList(blocks)
@@ -31,6 +33,7 @@ class ResidualBlockSeq(nn.Module):
         return x
 
 class SelfAttention(nn.Module):
+    """Self-attention layer for feature maps."""
     def __init__(self, channels):
         super().__init__()
         self.q = nn.Conv2d(channels, channels, 1)
@@ -50,6 +53,7 @@ class SelfAttention(nn.Module):
         return x + self.gamma * out
 
 class UNet(nn.Module):
+    """U-Net architecture for MNIST diffusion model."""
     def __init__(self):
         super().__init__()
 

@@ -3,6 +3,9 @@ import math
 
 # ===== COSINE BETA SCHEDULE =====
 def cosine_beta_schedule(timesteps, s=0.008):
+    """
+    cosine schedule as proposed in https://arxiv.org/abs/2102.09672
+    """
     steps = timesteps + 1
     x = torch.linspace(0, timesteps, steps, dtype=torch.float32)  # ← change dtype
     alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * math.pi / 2) ** 2
