@@ -23,7 +23,7 @@ The image below visualizes one example from **t=950 down to t=0** in a single sn
 
 ![Diffusion Process from t=950 to t=0](outputs/diffusion_process.png)
 
-> Each column (or frame) in the image corresponds to a timestep, showing how the model progressively removes noise while reconstructing the digit.
+> Each row in the image corresponds to a timestep, showing how the model progressively removes noise while reconstructing the digit.
 
 ---
 
