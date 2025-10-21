@@ -29,3 +29,22 @@ class ResidualBlockSeq(nn.Module):
         for block in self.blocks:
             x = block(x, t_embed)
         return x
+
+class SelfAttention(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.q = nn.Conv2d(channels, channels, 1)
+        self.k = nn.Conv2d(channels, channels, 1)
+        self.v = nn.Conv2d(channels, channels, 1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+    
+    def forward(self, x):
+        B, C, H, W = x.shape
+        q = self.q(x).view(B, C, H*W).permute(0, 2, 1)  # B x N x C
+        k = self.k(x).view(B, C, H*W)                     # B x C x N
+        v = self.v(x).view(B, C, H*W).permute(0, 2, 1)  # B x N x C
+
+        attn = torch.softmax(q @ k / (C**0.5), dim=-1)  # B x N x N
+        out = attn @ v                                 # B x N x C
+        out = out.permute(0, 2, 1).view(B, C, H, W)
+        return x + self.gamma * out
