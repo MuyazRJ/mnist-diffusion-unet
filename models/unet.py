@@ -48,3 +48,77 @@ class SelfAttention(nn.Module):
         out = attn @ v                                 # B x N x C
         out = out.permute(0, 2, 1).view(B, C, H, W)
         return x + self.gamma * out
+
+class UNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        # --- Timestep embedding ---
+        self.embed = nn.Sequential(
+            nn.Linear(T_DIM, 128),
+            nn.SiLU(),
+            nn.Linear(128, T_DIM)
+        )
+
+        # --- Encoder ---
+        self.enc1 = ResidualBlockSeq([
+            ResidualBlock(1, 16),
+            ResidualBlock(16, 16)
+        ])
+        self.down1 = nn.Conv2d(16, 32, 4, stride=2, padding=1)  # 28 → 14
+
+        self.enc2 = ResidualBlockSeq([
+            ResidualBlock(32, 32),
+            ResidualBlock(32, 32)
+        ])
+        self.down2 = nn.Conv2d(32, 64, 4, stride=2, padding=1)  # 14 → 7
+        self.attn14 = SelfAttention(32)  # 32 channels at 14x14
+
+        # --- Bottleneck ---
+        self.bottleneck = ResidualBlockSeq([
+            ResidualBlock(64, 64),
+            ResidualBlock(64, 64)
+        ])
+
+        # --- Decoder ---
+        self.up2 = nn.ConvTranspose2d(64, 32, 4, stride=2, padding=1)  # 7 → 14
+        self.dec2 = ResidualBlockSeq([
+            ResidualBlock(64, 32),
+            ResidualBlock(32, 32)
+        ])
+
+        self.up1 = nn.ConvTranspose2d(32, 16, 4, stride=2, padding=1)  # 14 → 28
+        self.dec1 = ResidualBlockSeq([
+            ResidualBlock(32, 16),
+            ResidualBlock(16, 16)
+        ])
+
+        self.final = nn.Conv2d(16, 1, 1) # -> (B, 1, 28, 28)
+    
+    def forward(self, x, t):
+        # Embed timestep
+        t_embed = t_embeddings[t]  # -> (B, T_DIM)
+        if t_embed.ndim == 1: 
+            t_embed = t_embed.unsqueeze(0)  # now shape [B, T_DIM] with B=1
+        
+        t_embed = self.embed(t_embed)  # -> (B, T_DIM)
+
+        # Encoder
+        x1 = self.enc1(x, t_embed) # -> (B, 16, 28, 28)
+        x2 = self.enc2(self.down1(x1), t_embed) # -> (B, 32, 14, 14)
+        x2 = self.attn14(x2)  
+
+        # Bottleneck
+        x3 = self.bottleneck(self.down2(x2), t_embed) # -> (B, 64, 7, 7)
+
+        # Decoder 
+        x4 = self.up2(x3) # -> (B, 32, 14, 14)
+        x4 = torch.cat([x4, x2], dim=1) # -> (B, 64, 14, 14)
+        x4 = self.dec2(x4, t_embed) # -> (B, 32, 14, 14)
+
+        x5 = self.up1(x4) # -> (B, 16, 28, 28)
+        x5 = torch.cat([x5, x1], dim=1) # -> (B, 32, 28, 28)
+        x5 = self.dec1(x5, t_embed) # -> (B, 16, 28, 28)
+
+        output = self.final(x5) # -> (B, 1, 28, 28)
+        return output
