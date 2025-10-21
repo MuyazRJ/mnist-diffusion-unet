@@ -19,3 +19,13 @@ class ResidualBlock(nn.Module):
         t_embed = self.linear(t_embed).unsqueeze(-1).unsqueeze(-1) # (B, out_ch, 1, 1)
         embeddings = self.act(self.conv1(self.gn1(x))) + t_embed # (B, out_ch, H, W)
         return self.act(self.skip(x) + self.conv2(self.gn2(embeddings)))
+
+class ResidualBlockSeq(nn.Module):
+    def __init__(self, blocks):
+        super().__init__()
+        self.blocks = nn.ModuleList(blocks)
+    
+    def forward(self, x, t_embed):
+        for block in self.blocks:
+            x = block(x, t_embed)
+        return x
