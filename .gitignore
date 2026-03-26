@@ -88,3 +88,5 @@ outputs/models/autoencoder
 fid_samples
 data
 # ---------------------
+
+*.pyc
