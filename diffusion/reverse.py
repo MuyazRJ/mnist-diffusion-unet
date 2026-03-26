@@ -1,3 +1,8 @@
+# Author: Mohammed Rahman
+# Student ID: 10971320
+# University of Manchester — BSc Computer Science Final Year Project, 2026
+#
+
 # diffusion/reverse.py
 import torch
 from config import T, alpha_bars, alphas, betas
