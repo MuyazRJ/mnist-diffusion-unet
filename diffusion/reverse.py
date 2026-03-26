@@ -1,74 +1,89 @@
+# diffusion/reverse.py
 import torch
-
 from config import T, alpha_bars, alphas, betas
 
-import matplotlib.pyplot as plt
-from math import ceil
+# Cache schedules per device so we don't keep copying
+_SCHED_CACHE = {}
 
-def reverse(model):
-    """Generates an image by reversing the diffusion process using the provided model."""
-    x_t = torch.randn((1, 1, 28, 28))  # Start from pure noise
-    for t in reversed(range(0, T)):
-        with torch.no_grad():
-            eps_pred = model(x_t, t)
-        
-        x_t = (1/torch.sqrt(alphas[t])) * (x_t - ((1 - alphas[t]) / torch.sqrt(1 - alpha_bars[t])) * eps_pred)
+def _get_schedules(device: torch.device):
+    key = str(device)
+    if key not in _SCHED_CACHE:
+        _SCHED_CACHE[key] = (
+            alphas.to(device).float(),
+            alpha_bars.to(device).float(),
+            betas.to(device).float(),
+        )
+    return _SCHED_CACHE[key]
+
+
+@torch.inference_mode()
+def reverse(
+    model,
+    device=None,
+    batch_size: int = 1,
+    channels: int = 1,
+    image_size: int = 28,
+):
+    """
+    Generic reverse sampler.
+    Returns: (B, C, H, W) float in [0,1]
+    """
+    if device is None:
+        device = next(model.parameters()).device
+    else:
+        device = torch.device(device) if isinstance(device, str) else device
+
+    a, ab, b = _get_schedules(device)
+
+    # Start from pure noise with the right shape
+    x_t = torch.randn((batch_size, channels, image_size, image_size), device=device)
+
+    for t in reversed(range(T)):
+        t_tensor = torch.full((batch_size,), t, device=device, dtype=torch.long)
+        eps_pred = model(x_t, t_tensor)
+
+        x_t = (1.0 / torch.sqrt(a[t])) * (x_t - ((1.0 - a[t]) / torch.sqrt(1.0 - ab[t])) * eps_pred)
 
         if t > 0:
-            z = torch.randn_like(x_t)
-            x_t += torch.sqrt(betas[t]) * z
-    
+            x_t = x_t + torch.sqrt(b[t]) * torch.randn_like(x_t)
+
     x_t = x_t.clamp(-1, 1)
-    x_img = (x_t + 1) / 2.0
-    x_img_255 = (x_img * 255).byte()
-    return x_img_255
+    return (x_t + 1.0) / 2.0
 
-def reverse_with_visualization(model, device="cpu"):
-    """Generates an image by reversing the diffusion process with visualization at intervals."""
+
+def reverse_with_visualization(
+    model,
+    device=None,
+    channels: int = 1,
+    image_size: int = 28,
+    save_every: int = 50,
+):
+    """
+    Same sampler but returns intermediate frames (for plotting/debugging).
+    Returns: list of (img_cpu, t) where img_cpu is (1,C,H,W) float in [-1,1]
+    """
     model.eval()
-    x_t = torch.randn((1, 1, 28, 28), device=device)
-    imgs = []
+    if device is None:
+        device = next(model.parameters()).device
+    else:
+        device = torch.device(device) if isinstance(device, str) else device
 
-    for t in reversed(range(0, T)):
-        t_tensor = torch.tensor([t], device=device)
-        with torch.no_grad():
+    a, ab, b = _get_schedules(device)
+
+    x_t = torch.randn((1, channels, image_size, image_size), device=device)
+    frames = []
+
+    with torch.inference_mode():
+        for t in reversed(range(T)):
+            t_tensor = torch.tensor([t], device=device, dtype=torch.long)
             eps_pred = model(x_t, t_tensor)
 
-        # Reverse diffusion step
-        x_t = (1/torch.sqrt(alphas[t])) * (x_t - ((1 - alphas[t]) / torch.sqrt(1 - alpha_bars[t])) * eps_pred)
+            x_t = (1.0 / torch.sqrt(a[t])) * (x_t - ((1.0 - a[t]) / torch.sqrt(1.0 - ab[t])) * eps_pred)
 
-        if t > 0:
-            z = torch.randn_like(x_t)
-            x_t += torch.sqrt(betas[t]) * z
+            if t > 0:
+                x_t = x_t + torch.sqrt(b[t]) * torch.randn_like(x_t)
 
-        # Save every 50 steps, including final
-        if t % 50 == 0 or t == 0:
-            imgs.append((x_t.detach().cpu().clone(), t))
+            if t % save_every == 0 or t == 0:
+                frames.append((x_t.detach().cpu().clone(), t))
 
-    # Plot results in rows
-    n = len(imgs)
-    cols = 5  # number of images per row
-    rows = ceil(n / cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 2, rows * 2))
-
-    for i, (img, t) in enumerate(imgs):
-        r, c = divmod(i, cols)
-        ax = axes[r][c] if rows > 1 else axes[c]
-        img = img.clamp(-1, 1)
-        img = (img + 1) / 2.0
-        ax.imshow(img[0, 0], cmap='gray')
-        ax.set_title(f"t={t}")
-        ax.axis("off")
-
-    # Hide any empty subplots
-    for j in range(i + 1, rows * cols):
-        r, c = divmod(j, cols)
-        ax = axes[r][c] if rows > 1 else axes[c]
-        ax.axis("off")
-
-    plt.tight_layout()
-    plt.show()
-
-    final_img = imgs[-1][0].clamp(-1, 1)
-    final_img = (final_img + 1) / 2.0
-    return (final_img * 255).byte()
+    return frames
