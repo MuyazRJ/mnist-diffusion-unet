@@ -1,0 +1,90 @@
+# ----------------------------------------
+# Python
+# ----------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dll
+
+# Byte-compiled / optimized
+*.pkl
+*.pickle
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# ----------------------------------------
+# Build / packaging
+# ----------------------------------------
+build/
+dist/
+*.egg-info/
+
+# ----------------------------------------
+# Logs & outputs (but allow empty folders)
+# ----------------------------------------
+outputs/*
+!outputs/.gitkeep
+
+samples/*
+!samples/.gitkeep
+
+checkpoints/*
+!checkpoints/.gitkeep
+
+logs/*
+!logs/.gitkeep
+
+generated/*
+!generated/.gitkeep
+
+# ----------------------------------------
+# Large datasets (but allow empty folders)
+# ----------------------------------------
+data/*
+!data/.gitkeep
+
+datasets/*
+!datasets/.gitkeep
+
+cache/*
+!cache/.gitkeep
+
+hf_cache/*
+!hf_cache/.gitkeep
+
+huggingface/*
+!huggingface/.gitkeep
+
+# Exclude everything inside huggingface cache
+~/.cache/huggingface/
+
+# ----------------------------------------
+# OS / Editor files
+# ----------------------------------------
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# ----------------------------------------
+# Misc
+# ----------------------------------------
+*.yaml~
+*.json~
+*.tmp
+*.bak
+outputs/samples
+outputs/models/autoencoder
+fid_samples
+data
+# ---------------------
